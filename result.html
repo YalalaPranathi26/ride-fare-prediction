@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fare Prediction Result</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#0a0e1a;color:#e0e0e0;min-height:100vh}
+  .header{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);padding:22px 20px;text-align:center;border-bottom:2px solid #27ae60}
+  .header h1{font-size:1.7rem;color:#fff}
+  .header p{color:#a0a8c0;margin-top:5px;font-size:.88rem}
+  .container{max-width:700px;margin:36px auto;padding:0 20px}
+
+  .fare-card{border-radius:16px;padding:40px 28px;text-align:center;border:2px solid #27ae60;margin-bottom:22px;position:relative;overflow:hidden;background:#161b22}
+  .fare-card::before{content:'';position:absolute;inset:0;background:#27ae60;opacity:.05}
+  .fare-label{font-size:.95rem;color:#8090a8;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+  .fare-amount{font-size:4rem;font-weight:900;color:#27ae60;letter-spacing:2px}
+  .fare-unit{font-size:1.2rem;color:#27ae60;margin-top:4px}
+  .fare-note{font-size:.82rem;color:#5a6a7a;margin-top:8px}
+
+  .details-card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:22px;margin-bottom:18px}
+  .details-card h3{color:#27ae60;font-size:.95rem;margin-bottom:16px;border-bottom:1px solid #21262d;padding-bottom:8px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .detail-item{background:#0a0e1a;border-radius:8px;padding:12px}
+  .detail-item .val{font-size:1.1rem;font-weight:700;color:#27ae60}
+  .detail-item .lbl{font-size:.72rem;color:#8090a8;margin-top:2px}
+
+  .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  .info-chip{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:12px;text-align:center}
+  .info-chip .val{font-size:1rem;font-weight:700;color:#27ae60}
+  .info-chip .lbl{font-size:.7rem;color:#8090a8;margin-top:2px}
+
+  .surge-bar{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:18px;margin-bottom:18px}
+  .surge-bar h3{color:#27ae60;font-size:.9rem;margin-bottom:12px}
+  .bar-row{margin-bottom:8px}
+  .bar-label{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px}
+  .bar-bg{background:#0a0e1a;border-radius:20px;height:10px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#27ae60,#1e8449)}
+
+  .btn-area{text-align:center;margin-top:8px}
+  .btn{display:inline-block;padding:11px 30px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.92rem;margin:5px;transition:transform .2s,box-shadow .2s}
+  .btn-back{background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff}
+  .btn-back:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(39,174,96,.4)}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>&#128664; Ride Fare Prediction Result</h1>
+  <p>{{ model_name }} &nbsp;|&nbsp; R²={{ model_r2 }} &nbsp;|&nbsp; MAE=₹{{ model_mae }}</p>
+</div>
+<div class="container">
+
+  <!-- Main fare display -->
+  <div class="fare-card">
+    <div class="fare-label">Estimated Fare</div>
+    <div class="fare-amount">₹{{ fare }}</div>
+    <div class="fare-unit">Indian Rupees</div>
+    <div class="fare-note">(Exact: ₹{{ fare_exact }} &nbsp;|&nbsp; Rounded to nearest ₹5)</div>
+  </div>
+
+  <!-- Trip summary chips -->
+  <div class="info-grid">
+    <div class="info-chip"><div class="val">{{ vehicle_type }}</div><div class="lbl">Vehicle</div></div>
+    <div class="info-chip"><div class="val">{{ distance }} km</div><div class="lbl">Distance</div></div>
+    <div class="info-chip"><div class="val">{{ duration }} min</div><div class="lbl">Duration</div></div>
+    <div class="info-chip"><div class="val">{{ surge }}×</div><div class="lbl">Surge</div></div>
+  </div>
+
+  <!-- Fare breakdown estimate -->
+  <div class="details-card">
+    <h3>&#128200; Trip Details</h3>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="val">{{ input_data.get('city','—') }}</div><div class="lbl">City</div></div>
+      <div class="detail-item"><div class="val">{{ input_data.get('weather_condition','—') }}</div><div class="lbl">Weather</div></div>
+      <div class="detail-item"><div class="val">{{ input_data.get('traffic_level','—') }}</div><div class="lbl">Traffic</div></div>
+      <div class="detail-item"><div class="val">{{ input_data.get('demand_level','—') }}</div><div class="lbl">Demand</div></div>
+      <div class="detail-item"><div class="val">{{ input_data.get('payment_method','—') }}</div><div class="lbl">Payment</div></div>
+      <div class="detail-item"><div class="val">{{ input_data.get('driver_rating','—') }} ★</div><div class="lbl">Driver Rating</div></div>
+    </div>
+  </div>
+
+  <!-- Surge visual -->
+  <div class="surge-bar">
+    <h3>&#9889; Surge &amp; Model Info</h3>
+    <div class="bar-row">
+      <div class="bar-label"><span>Surge Multiplier</span><span style="color:#27ae60">{{ surge }}×</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:{{ [(surge-1)/2.5*100,100]|min }}%;"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label"><span>Model R² Score</span><span style="color:#27ae60">{{ model_r2 }}</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:{{ (model_r2*100)|round }}%;"></div></div>
+    </div>
+  </div>
+
+  <div class="btn-area">
+    <a href="/" class="btn btn-back">&#8592; Estimate Another Fare</a>
+  </div>
+</div>
+</body>
+</html>

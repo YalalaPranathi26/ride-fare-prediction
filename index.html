@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ride Fare Predictor</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#0a0e1a;color:#e0e0e0;min-height:100vh}
+  .header{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);padding:26px 20px;text-align:center;border-bottom:2px solid #27ae60;box-shadow:0 4px 20px rgba(39,174,96,.2)}
+  .header h1{font-size:2rem;color:#fff;letter-spacing:2px}
+  .header h1 span{color:#27ae60}
+  .header p{color:#a0a8c0;margin-top:6px;font-size:.9rem}
+  .badge{display:inline-block;margin-top:10px;background:rgba(39,174,96,.15);border:1px solid #27ae60;color:#27ae60;padding:4px 14px;border-radius:20px;font-size:.82rem}
+  .container{max-width:1100px;margin:0 auto;padding:26px 20px}
+  .info-bar{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;padding:10px;background:#161b22;border-radius:10px;border:1px solid #21262d}
+  .info-item{font-size:.82rem;color:#8090a8}.info-item span{color:#27ae60;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  .card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:18px;transition:border-color .2s}
+  .card:hover{border-color:#27ae60}
+  .card-title{font-size:.92rem;font-weight:700;color:#27ae60;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #21262d}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:.75rem;color:#8090a8;margin-bottom:3px}
+  .field input,.field select{width:100%;padding:8px 10px;background:#0a0e1a;border:1px solid #21262d;border-radius:6px;color:#e0e0e0;font-size:.85rem;transition:border-color .2s}
+  .field input:focus,.field select:focus{outline:none;border-color:#27ae60;box-shadow:0 0 0 2px rgba(39,174,96,.15)}
+  .field select option{background:#0a0e1a}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .submit-area{text-align:center;margin-top:22px;padding:20px;background:#161b22;border-radius:12px;border:1px solid #21262d}
+  .submit-area p{color:#8090a8;margin-bottom:14px;font-size:.88rem}
+  .btn-predict{background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;border:none;padding:14px 52px;border-radius:8px;font-size:1.05rem;font-weight:700;cursor:pointer;letter-spacing:1px;transition:transform .2s,box-shadow .2s}
+  .btn-predict:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(39,174,96,.4)}
+  .note{font-size:.72rem;color:#5a6a7a;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>&#128664; Ride Fare <span>Predictor</span></h1>
+  <p>AI-powered fare estimation for bikes &amp; 4-wheelers across 6 Indian cities</p>
+  <div class="badge">{{ model_name }} &nbsp;|&nbsp; R²={{ model_r2 }} &nbsp;|&nbsp; MAE=₹{{ model_mae }}</div>
+</div>
+<div class="container">
+  <div class="info-bar">
+    <div class="info-item">Model: <span>{{ model_name }}</span></div>
+    <div class="info-item">R² Score: <span>{{ model_r2 }}</span></div>
+    <div class="info-item">MAE: <span>₹{{ model_mae }}</span></div>
+    <div class="info-item">MAPE: <span>{{ model_mape }}%</span></div>
+    <div class="info-item">Cities: <span>6 metros</span></div>
+  </div>
+
+  <form action="/predict" method="POST">
+    <div class="grid">
+
+      <!-- Card 1: Trip Basics -->
+      <div class="card">
+        <div class="card-title">&#128664; Trip Details</div>
+        <div class="field">
+          <label>Vehicle Type</label>
+          <select name="vehicle_type">
+            {% for v in vehicle_categories %}
+            <option value="{{ v }}" {% if v==defaults.vehicle_type %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Distance (km)</label>
+          <input type="number" name="distance_km" value="{{ defaults.distance_km }}" min="0.5" max="80" step="0.1">
+        </div>
+        <div class="field">
+          <label>Estimated Distance (km)</label>
+          <input type="number" name="estimated_distance_km" value="{{ defaults.estimated_distance_km }}" min="0.5" max="80" step="0.1">
+        </div>
+        <div class="field">
+          <label>Trip Duration (min)</label>
+          <input type="number" name="trip_duration_min" value="{{ defaults.trip_duration_min }}" min="1" max="180" step="0.5">
+        </div>
+        <div class="field">
+          <label>Estimated Duration (min)</label>
+          <input type="number" name="estimated_duration_min" value="{{ defaults.estimated_duration_min }}" min="1" max="180" step="0.5">
+        </div>
+        <div class="field">
+          <label>Waiting Time (min)</label>
+          <input type="number" name="waiting_time_min" value="{{ defaults.waiting_time_min }}" min="0" max="30" step="0.5">
+        </div>
+      </div>
+
+      <!-- Card 2: Location -->
+      <div class="card">
+        <div class="card-title">&#128205; Location</div>
+        <div class="field">
+          <label>City</label>
+          <select name="city" id="city-select" onchange="updateZones()">
+            {% for c in cities %}
+            <option value="{{ c }}" {% if c==defaults.city %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Pickup Zone</label>
+          <select name="pickup_zone" id="pickup-zone">
+            {% for z in city_zones[defaults.city] %}
+            <option value="{{ z }}" {% if z==defaults.pickup_zone %}selected{% endif %}>{{ z }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Dropoff Zone</label>
+          <select name="dropoff_zone" id="dropoff-zone">
+            {% for z in city_zones[defaults.city] %}
+            <option value="{{ z }}" {% if z==defaults.dropoff_zone %}selected{% endif %}>{{ z }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Payment Method</label>
+          <select name="payment_method">
+            {% for p in payment_options %}
+            <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Card 3: Time -->
+      <div class="card">
+        <div class="card-title">&#128336; Time & Date</div>
+        <div class="row2">
+          <div class="field">
+            <label>Hour (0-23)</label>
+            <input type="number" name="hour_of_day" value="{{ defaults.hour_of_day }}" min="0" max="23" step="1">
+          </div>
+          <div class="field">
+            <label>Day of Week (0=Mon)</label>
+            <input type="number" name="day_of_week" value="{{ defaults.day_of_week }}" min="0" max="6" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label>Month (1-12)</label>
+          <input type="number" name="month" value="{{ defaults.month }}" min="1" max="12" step="1">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Is Weekend (0/1)</label>
+            <input type="number" name="is_weekend" value="{{ defaults.is_weekend }}" min="0" max="1" step="1">
+          </div>
+          <div class="field">
+            <label>Is Peak Hour (0/1)</label>
+            <input type="number" name="is_peak_hour" value="{{ defaults.is_peak_hour }}" min="0" max="1" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label>Is Night (0/1)</label>
+          <input type="number" name="is_night" value="{{ defaults.is_night }}" min="0" max="1" step="1">
+        </div>
+      </div>
+
+      <!-- Card 4: Weather -->
+      <div class="card">
+        <div class="card-title">&#9925; Weather Conditions</div>
+        <div class="field">
+          <label>Weather Condition</label>
+          <select name="weather_condition">
+            {% for w in weather_options %}
+            <option value="{{ w }}" {% if w==defaults.weather_condition %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Temperature (°C)</label>
+          <input type="number" name="temperature_celsius" value="{{ defaults.temperature_celsius }}" min="5" max="50" step="0.5">
+        </div>
+        <div class="field">
+          <label>Rainfall (mm)</label>
+          <input type="number" name="rainfall_mm" value="{{ defaults.rainfall_mm }}" min="0" max="100" step="0.1">
+        </div>
+        <div class="field">
+          <label>Visibility (km)</label>
+          <input type="number" name="visibility_km" value="{{ defaults.visibility_km }}" min="0.2" max="25" step="0.1">
+        </div>
+      </div>
+
+      <!-- Card 5: Traffic & Demand -->
+      <div class="card">
+        <div class="card-title">&#128246; Traffic &amp; Demand</div>
+        <div class="field">
+          <label>Traffic Level</label>
+          <select name="traffic_level">
+            {% for t in traffic_options %}
+            <option value="{{ t }}" {% if t==defaults.traffic_level %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Traffic Index (1-10)</label>
+          <input type="number" name="traffic_index" value="{{ defaults.traffic_index }}" min="1" max="10" step="0.1">
+        </div>
+        <div class="field">
+          <label>Demand Level</label>
+          <select name="demand_level">
+            {% for d in demand_options %}
+            <option value="{{ d }}" {% if d==defaults.demand_level %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Demand Index (1-10)</label>
+            <input type="number" name="demand_index" value="{{ defaults.demand_index }}" min="1" max="10" step="0.1">
+          </div>
+          <div class="field">
+            <label>Supply Ratio</label>
+            <input type="number" name="supply_ratio" value="{{ defaults.supply_ratio }}" min="0.1" max="3" step="0.01">
+          </div>
+        </div>
+        <div class="field">
+          <label>Surge Multiplier (1.0 – 3.5)</label>
+          <input type="number" name="surge_multiplier" value="{{ defaults.surge_multiplier }}" min="1.0" max="3.5" step="0.25">
+        </div>
+      </div>
+
+      <!-- Card 6: Driver -->
+      <div class="card">
+        <div class="card-title">&#128100; Driver &amp; Passenger</div>
+        <div class="field">
+          <label>Driver Rating (1-5)</label>
+          <input type="number" name="driver_rating" value="{{ defaults.driver_rating }}" min="1" max="5" step="0.1">
+        </div>
+        <div class="field">
+          <label>Passenger Rating (1-5)</label>
+          <input type="number" name="passenger_rating" value="{{ defaults.passenger_rating }}" min="1" max="5" step="0.1">
+        </div>
+        <div class="field">
+          <label>Driver Experience (years)</label>
+          <input type="number" name="driver_experience_yr" value="{{ defaults.driver_experience_yr }}" min="0.5" max="15" step="0.5">
+        </div>
+        <p class="note">&#9432; Engineered features (effective speed, demand-supply gap, peak-rain flag etc.) are computed automatically from your inputs.</p>
+      </div>
+
+    </div>
+
+    <div class="submit-area">
+      <p>Enter trip details above — engineered features are auto-computed on the backend.</p>
+      <button type="submit" class="btn-predict">&#128664; PREDICT FARE</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const cityZones = {{ city_zones | tojson }};
+function updateZones() {
+  const city   = document.getElementById('city-select').value;
+  const zones  = cityZones[city] || [];
+  ['pickup-zone','dropoff-zone'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    zones.forEach(z => { const o = document.createElement('option'); o.value=z; o.text=z; sel.add(o); });
+  });
+}
+</script>
+</body>
+</html>
